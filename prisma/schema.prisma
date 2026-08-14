@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String   @id @default(uuid())
+  email                String   @unique
+  passwordHash         String
+  role                 String   @default("USER")         // USER | ADMIN
+  fullName             String?
+  phone                String?
+  kycStatus            String   @default("PENDING")      // PENDING | VERIFIED | REJECTED
+  twoFactorSecret      String?
+  twoFactorEnabled     Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  wallets              Wallet[]
+  transactions         Transaction[]
+  copyTrades           CopyTrade[]
+  passwordResetTokens  PasswordResetToken[]
+  deposits             Deposit[]
+  withdrawals          Withdrawal[]
+  kycDocuments         KycDocument[]
+  withdrawalAddresses  UserWithdrawalAddress[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  coin      String   // e.g. "BTC", "ETH", "USDT"
+  balance   Decimal  @default(0.00)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, coin])
+}
+
+// Legacy Transaction model — kept for existing trade/copy-trade history
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // "DEPOSIT" | "WITHDRAWAL" | "TRADE"
+  asset     String
+  amount    Decimal
+  usdValue  Decimal?
+  status    String   // "PENDING" | "COMPLETED" | "FAILED"
+  txHash    String?
+  createdAt DateTime @default(now())
+}
+
+model CopyTrade {
+  id        String   @id @default(uuid())
+  userId    String
+  traderId  Int
+  amount    Float
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// ─── Coin / Network catalogue ─────────────────────────────────────────────────
+
+model CoinNetwork {
+  id        String   @id @default(uuid())
+  coin      String   // e.g. "USDT"
+  network   String   // e.g. "TRC20"
+  label     String   // Display label: "USDT (TRC20)"
+  isEnabled Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  walletAddresses AdminWalletAddress[]
+  deposits        Deposit[]
+  withdrawals     Withdrawal[]
+
+  @@unique([coin, network])
+}
+
+model AdminWalletAddress {
+  id            String      @id @default(uuid())
+  coinNetworkId String
+  coinNetwork   CoinNetwork @relation(fields: [coinNetworkId], references: [id])
+  address       String
+  label         String?     // Optional admin note
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// ─── Deposits ────────────────────────────────────────────────────────────────
+
+model Deposit {
+  id                String      @id @default(uuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  coinNetworkId     String
+  coinNetwork       CoinNetwork @relation(fields: [coinNetworkId], references: [id])
+  coin              String      // denormalised for query convenience
+  network           String
+  amount            Decimal
+  txHash            String?     @unique
+  proofUrl          String?     // local file path or URL
+  walletAddressUsed String      // snapshot of admin address shown to user
+  status            String      @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectionReason   String?
+  reviewedBy        String?     // Admin userId
+  reviewedAt        DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// ─── Withdrawals ─────────────────────────────────────────────────────────────
+
+model Withdrawal {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  coinNetworkId   String
+  coinNetwork     CoinNetwork @relation(fields: [coinNetworkId], references: [id])
+  coin            String
+  network         String
+  amount          Decimal
+  toAddress       String      // User's external withdrawal address
+  status          String      @default("PENDING") // PENDING | APPROVED | REJECTED | COMPLETED
+  rejectionReason String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// ─── KYC ─────────────────────────────────────────────────────────────────────
+
+model KycDocument {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  docType         String    // PASSPORT | DRIVERS_LICENSE | NATIONAL_ID | PROOF_OF_ADDRESS | SELFIE
+  fileUrl         String    // local path or cloud URL
+  fileName        String    // original file name for display
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectionReason String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ─── User withdrawal addresses ────────────────────────────────────────────────
+
+model UserWithdrawalAddress {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  coin      String
+  network   String
+  address   String
+  label     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, coin, network])
+}
