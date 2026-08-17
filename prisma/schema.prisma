@@ -13,7 +13,12 @@ model User {
   passwordHash         String
   role                 String   @default("USER")         // USER | ADMIN
   fullName             String?
+  firstName            String?
+  lastName             String?
   phone                String?
+  country              String?
+  currency             String?  @default("USD")
+  referralCode         String?
   kycStatus            String   @default("PENDING")      // PENDING | VERIFIED | REJECTED
   twoFactorSecret      String?
   twoFactorEnabled     Boolean  @default(false)

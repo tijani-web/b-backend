@@ -11,31 +11,45 @@ const prisma = new PrismaClient();
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, firstName, lastName, phone, country, currency, referralCode } = req.body;
 
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' });
       return;
     }
 
+    if (password.length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return;
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      res.status(400).json({ error: 'User already exists' });
+      res.status(400).json({ error: 'An account with this email already exists' });
       return;
     }
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    const fullName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
+
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        fullName,
+        phone: phone || undefined,
+        country: country || undefined,
+        currency: currency || 'USD',
+        referralCode: referralCode || undefined,
       },
     });
 
     const token = generateToken(user.id);
-    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role, kycStatus: user.kycStatus } });
+    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role, kycStatus: user.kycStatus, fullName: user.fullName } });
   } catch (error) {
     logger.error('Register error:', error);
     res.status(500).json({ error: 'Internal server error' });
