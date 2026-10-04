@@ -1,11 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { logger } from './utils/logger';
-
-dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
@@ -22,6 +20,11 @@ import depositRoutes from './routes/deposit.routes';
 import withdrawalRoutes from './routes/withdrawal.routes';
 import kycRoutes from './routes/kyc.routes';
 import adminRoutes from './routes/admin.routes';
+import copyTraderRoutes from './routes/copyTrader.routes';
+import subscriptionRoutes from './routes/subscription.routes';
+import signalsRoutes from './routes/signals.routes';
+import realEstateRoutes from './routes/realestate.routes';
+import stakeRoutes from './routes/stake.routes';
 
 // ─── Global middleware ────────────────────────────────────────────────────────
 app.use(cors());
@@ -44,6 +47,11 @@ app.use('/api/deposits', depositRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/copy-traders', copyTraderRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/signals', signalsRoutes);
+app.use('/api/real-estate', realEstateRoutes);
+app.use('/api/stake', stakeRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: 'BlofinPro Backend is running' });

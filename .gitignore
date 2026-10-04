@@ -4,3 +4,8 @@ dist/
 *.log
 uploads/
 prisma/migrations/
+
+seed*.js
+seed*.ts
+*.sqlite
+*.db

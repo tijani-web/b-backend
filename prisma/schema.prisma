@@ -33,6 +33,10 @@ model User {
   withdrawals          Withdrawal[]
   kycDocuments         KycDocument[]
   withdrawalAddresses  UserWithdrawalAddress[]
+  subscriptions        Subscription[]
+  signalPurchases      SignalPurchase[]
+  realEstateInvestments RealEstateInvestment[]
+  stakes               Stake[]
 }
 
 model PasswordResetToken {
@@ -73,13 +77,35 @@ model Transaction {
 model CopyTrade {
   id        String   @id @default(uuid())
   userId    String
-  traderId  Int
+  traderId  String   // now a String UUID ref to CopyTrader
   amount    Float
   status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user      User     @relation(fields: [userId], references: [id])
+}
+
+// ─── Copy Trader Profiles (admin-managed) ─────────────────────────────────────
+
+model CopyTrader {
+  id         String   @id @default(uuid())
+  name       String
+  avatar     String   @default("🤖")   // emoji or URL
+  roi        String                     // e.g. "+145.2%"
+  winRate    String                     // e.g. "82%"
+  aum        String                     // e.g. "$1.2M"
+  followers  Int      @default(0)
+  risk       String   @default("Medium") // Low | Medium | High
+  handle     String?
+  profitShare String?    @default("20%")
+  wins       Int?       @default(0)
+  losses     Int?       @default(0)
+  trades     Int?       @default(0)
+  minStartup String?    @default("$0")
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
 
 // ─── Coin / Network catalogue ─────────────────────────────────────────────────
@@ -186,4 +212,109 @@ model UserWithdrawalAddress {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, coin, network])
+}
+
+// ─── Subscription Plans ───────────────────────────────────────────────────────
+
+model SubscriptionPlan {
+  id          String         @id @default(uuid())
+  name        String         // e.g. "Starter plan"
+  minAmount   Decimal
+  maxAmount   Decimal
+  durationDays Int
+  roi         String         // e.g. "200%"
+  isActive    Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  planId     String
+  plan       SubscriptionPlan @relation(fields: [planId], references: [id])
+  amount     Decimal
+  currency   String           @default("USD")
+  status     String           @default("ACTIVE")  // ACTIVE | COMPLETED | CANCELLED
+  startDate  DateTime         @default(now())
+  endDate    DateTime
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+// ─── Signals ──────────────────────────────────────────────────────────────────
+
+model SignalPackage {
+  id          String          @id @default(uuid())
+  name        String          // e.g. "CD V5"
+  price       Decimal
+  strength    Int             @default(10)  // percentage
+  isActive    Boolean         @default(true)
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  purchases   SignalPurchase[]
+}
+
+model SignalPurchase {
+  id        String        @id @default(uuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  packageId String
+  package   SignalPackage @relation(fields: [packageId], references: [id])
+  amount    Decimal
+  status    String        @default("ACTIVE")  // ACTIVE | EXPIRED
+  expiresAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// ─── Real Estate ──────────────────────────────────────────────────────────────
+
+model RealEstateProject {
+  id          String              @id @default(uuid())
+  name        String
+  description String
+  imageUrl    String?
+  location    String?
+  minAmount   Decimal
+  roi         String              // e.g. "85%"
+  strategy    String              // e.g. "Fixed Income"
+  status      String              @default("OPEN")  // OPEN | CLOSED
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  investments RealEstateInvestment[]
+}
+
+model RealEstateInvestment {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  projectId String
+  project   RealEstateProject @relation(fields: [projectId], references: [id])
+  amount    Decimal
+  status    String            @default("ACTIVE")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+
+// """ Stake """
+
+model Stake {
+  id          String    @id @default(uuid())
+  userId      String
+  coin        String
+  amount      Decimal
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

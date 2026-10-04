@@ -173,3 +173,41 @@ export const adminGetStats = async (_req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 };
+
+/** DELETE /api/admin/users/:id */
+export const adminDeleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    // Prevent admin from deleting themselves
+    if (user.id === req.userId) {
+      res.status(400).json({ error: 'Cannot delete your own admin account' });
+      return;
+    }
+
+    // Delete user and all related records in a transaction
+    await prisma.$transaction([
+      prisma.wallet.deleteMany({ where: { userId: id } }),
+      prisma.transaction.deleteMany({ where: { userId: id } }),
+      prisma.copyTrade.deleteMany({ where: { userId: id } }),
+      prisma.passwordResetToken.deleteMany({ where: { userId: id } }),
+      prisma.deposit.deleteMany({ where: { userId: id } }),
+      prisma.withdrawal.deleteMany({ where: { userId: id } }),
+      prisma.kycDocument.deleteMany({ where: { userId: id } }),
+      prisma.userWithdrawalAddress.deleteMany({ where: { userId: id } }),
+      prisma.user.delete({ where: { id } }),
+    ]);
+
+    res.status(200).json({ message: 'User and all related records deleted successfully' });
+  } catch (error) {
+    logger.error('adminDeleteUser error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+};

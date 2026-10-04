@@ -60,12 +60,27 @@ async function main() {
   }
 
   console.log(`✅ Seeded ${COINS.length} coin/network entries.`);
+
+  // ─── Seed default copy traders ──────────────────────────────────────────────
+  console.log('Seeding copy traders...');
+  const TRADERS = [
+    { name: 'CryptoWhale_99',  avatar: '🐋', roi: '+145.2%', winRate: '82%', aum: '$1.2M', followers: 1240, risk: 'High' },
+    { name: 'SafeTrades_Algo', avatar: '🤖', roi: '+32.4%',  winRate: '95%', aum: '$4.5M', followers: 8530, risk: 'Low'  },
+    { name: 'Ethereum_Maxi',   avatar: '💎', roi: '+88.1%',  winRate: '64%', aum: '$850K', followers: 430,  risk: 'Medium' },
+    { name: 'AlphaSeeker',     avatar: '🐺', roi: '+210.5%', winRate: '55%', aum: '$2.1M', followers: 3200, risk: 'High' },
+  ];
+  for (const t of TRADERS) {
+    const existing = await (prisma as any).copyTrader?.findFirst({ where: { name: t.name } });
+    if (!existing) await (prisma as any).copyTrader?.create({ data: t });
+  }
+  console.log(`✅ Seeded ${TRADERS.length} copy traders.`);
+
   console.log('');
   console.log('⚠️  Next steps:');
   console.log('   1. Go to the admin panel > Wallet Settings');
   console.log('   2. Add your actual wallet addresses for each coin/network');
   console.log('   3. Set your account role to ADMIN in the DB:');
-  console.log('      UPDATE "User" SET role = \'ADMIN\' WHERE email = \'your@email.com\';');
+  console.log("      UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'your@email.com';");
 }
 
 main()
