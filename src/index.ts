@@ -29,6 +29,10 @@ import referralRoutes from './routes/referral.routes';
 // ─── Global middleware ────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://www.blofinprime.com',
+  'https://blofinprime.com',
+  'https://www.blofinpro.com',
+  'https://blofinpro.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4173',
@@ -37,10 +41,15 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    const isAllowed = allowedOrigins.includes(origin) ||
+      /blofinprime\.com$/.test(origin) ||
+      /vercel\.app$/.test(origin) ||
+      process.env.NODE_ENV !== 'production';
+
+    if (isAllowed) {
       return callback(null, true);
     }
-    return callback(new Error('Blocked by CORS policy'));
+    return callback(null, false);
   },
   credentials: true,
 }));
@@ -71,6 +80,14 @@ app.use('/api/referrals', referralRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: 'BlofinPrime Backend is running' });
+});
+
+// ─── Global JSON Error Handler (Never send HTML error pages) ─────────────────
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('Unhandled server error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+  });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
