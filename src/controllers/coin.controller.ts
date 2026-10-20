@@ -1,9 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
-
-const prisma = new PrismaClient();
 
 // ─── Public / User ────────────────────────────────────────────────────────────
 
@@ -75,7 +73,7 @@ export const createCoin = async (req: AuthRequest, res: Response): Promise<void>
 /** PUT /api/admin/coins/:id */
 export const updateCoin = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { label, isEnabled, sortOrder } = req.body;
 
     const coin = await prisma.coinNetwork.update({
@@ -97,7 +95,7 @@ export const updateCoin = async (req: AuthRequest, res: Response): Promise<void>
 /** POST /api/admin/coins/:id/addresses */
 export const addWalletAddress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id: coinNetworkId } = req.params;
+    const coinNetworkId = req.params.id as string;
     const { address, label } = req.body;
 
     if (!address) {
@@ -119,7 +117,7 @@ export const addWalletAddress = async (req: AuthRequest, res: Response): Promise
 /** PUT /api/admin/addresses/:id */
 export const updateWalletAddress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { address, label, isActive } = req.body;
 
     const walletAddress = await prisma.adminWalletAddress.update({
@@ -141,7 +139,7 @@ export const updateWalletAddress = async (req: AuthRequest, res: Response): Prom
 /** DELETE /api/admin/coins/:id */
 export const deleteCoin = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     await prisma.coinNetwork.delete({ where: { id } });
     res.status(200).json({ message: 'Coin deleted' });
   } catch (error) {

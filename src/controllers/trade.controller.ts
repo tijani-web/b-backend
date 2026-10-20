@@ -1,18 +1,17 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { MarketService } from '../services/market.service';
 import { logger } from '../utils/logger';
-
-const prisma = new PrismaClient();
 
 export const executeTrade = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
     const { fromAsset, toAsset, amount } = req.body;
 
-    if (!userId || !fromAsset || !toAsset || !amount || amount <= 0) {
-      res.status(400).json({ error: 'Valid fromAsset, toAsset, and amount are required' });
+    const numAmount = parseFloat(amount);
+    if (!userId || !fromAsset || !toAsset || isNaN(numAmount) || numAmount <= 0) {
+      res.status(400).json({ error: 'Valid fromAsset, toAsset, and positive amount are required' });
       return;
     }
 
@@ -36,21 +35,24 @@ export const executeTrade = async (req: AuthRequest, res: Response): Promise<voi
       where: { userId_coin: { userId, coin: fromAsset.toUpperCase() } }
     });
 
-    if (!sourceWallet || Number(sourceWallet.balance) < amount) {
-      res.status(400).json({ error: `Insufficient ${fromAsset} balance` });
+    if (!sourceWallet || Number(sourceWallet.balance) < numAmount) {
+      const available = sourceWallet ? Number(sourceWallet.balance).toFixed(6) : '0.000000';
+      res.status(400).json({
+        error: `Insufficient ${fromAsset.toUpperCase()} balance. Available: ${available} ${fromAsset.toUpperCase()}, Required: ${numAmount.toFixed(6)} ${fromAsset.toUpperCase()}`
+      });
       return;
     }
 
-    // 3. Calculate conversion
-    const usdValue = amount * fromPrice;
-    const receivedAmount = usdValue / toPrice;
+    // 3. Calculate conversion — round to 8 dp to prevent Prisma Decimal overflow
+    const usdValue       = Math.round(numAmount * fromPrice * 1e8) / 1e8;
+    const receivedAmount = Math.round((usdValue / toPrice) * 1e8) / 1e8;
 
     // 4. Execute trade transactionally
     await prisma.$transaction(async (tx) => {
       // Deduct from source
       await tx.wallet.update({
         where: { id: sourceWallet.id },
-        data: { balance: { decrement: amount } }
+        data: { balance: { decrement: numAmount } }
       });
 
       // Credit to target
@@ -79,7 +81,7 @@ export const executeTrade = async (req: AuthRequest, res: Response): Promise<voi
           userId,
           type: 'TRADE',
           asset: `${fromAsset.toUpperCase()}_TO_${toAsset.toUpperCase()}`,
-          amount: amount,
+          amount: numAmount,
           usdValue: usdValue,
           status: 'COMPLETED'
         }
@@ -88,13 +90,16 @@ export const executeTrade = async (req: AuthRequest, res: Response): Promise<voi
 
     res.status(200).json({
       message: 'Trade executed successfully',
+      fromAsset: fromAsset.toUpperCase(),
+      toAsset: toAsset.toUpperCase(),
       executedPrice: toPrice,
-      receivedAmount
+      receivedAmount,
+      usdValue
     });
 
   } catch (error) {
     logger.error('Trade execution error:', error);
-    res.status(500).json({ error: 'Failed to execute trade' });
+    res.status(500).json({ error: 'Failed to execute trade. Please try again.' });
   }
 };
 
@@ -154,7 +159,7 @@ export const copyTrader = async (req: AuthRequest, res: Response): Promise<void>
       prisma.copyTrade.create({
         data: {
           userId: req.userId,
-          traderId: Number(traderId),
+          traderId: String(traderId),
           amount: assetAmount,
         },
       }),

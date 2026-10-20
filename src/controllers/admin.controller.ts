@@ -1,9 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
-
-const prisma = new PrismaClient();
 
 /** GET /api/admin/users */
 export const adminGetAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -62,7 +60,7 @@ export const adminGetAllUsers = async (req: AuthRequest, res: Response): Promise
 /** GET /api/admin/users/:id */
 export const adminGetUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -177,7 +175,7 @@ export const adminGetStats = async (_req: AuthRequest, res: Response): Promise<v
 /** DELETE /api/admin/users/:id */
 export const adminDeleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id } });

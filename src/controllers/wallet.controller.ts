@@ -1,9 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
-
-const prisma = new PrismaClient();
 
 export const getTransactionHistory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -48,9 +46,47 @@ export const getWallets = async (req: AuthRequest, res: Response): Promise<void>
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const wallets = await prisma.wallet.findMany({
+
+    let wallets = await prisma.wallet.findMany({
       where: { userId },
     });
+
+    // If user has no wallets yet, initialize standard primary wallets (USDT, BTC, ETH, SOL)
+    if (wallets.length === 0) {
+      const defaultCoins = ['USDT', 'BTC', 'ETH', 'SOL'];
+      await prisma.wallet.createMany({
+        data: defaultCoins.map(coin => ({
+          userId,
+          coin,
+          balance: 0.00,
+        })),
+        skipDuplicates: true,
+      });
+      wallets = await prisma.wallet.findMany({
+        where: { userId },
+      });
+    } else {
+      // Ensure primary USDT wallet always exists
+      const hasUSDT = wallets.some(w => w.coin === 'USDT');
+      if (!hasUSDT) {
+        const usdtWallet = await prisma.wallet.create({
+          data: { userId, coin: 'USDT', balance: 0.00 },
+        }).catch(() => null);
+        if (usdtWallet) wallets.unshift(usdtWallet);
+      }
+    }
+
+    // Sort: USDT first, then BTC, ETH, SOL, then alphabetical
+    const priority = ['USDT', 'BTC', 'ETH', 'SOL'];
+    wallets.sort((a, b) => {
+      const idxA = priority.indexOf(a.coin);
+      const idxB = priority.indexOf(b.coin);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.coin.localeCompare(b.coin);
+    });
+
     res.status(200).json({ data: wallets });
   } catch (error) {
     logger.error('Get wallets error:', error);

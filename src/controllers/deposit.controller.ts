@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
 import { EmailService } from '../services/email.service';
-
-const prisma = new PrismaClient();
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
@@ -17,13 +15,14 @@ export const createDeposit = async (req: AuthRequest, res: Response): Promise<vo
       ? `/uploads/proofs/${(req as any).file.filename}`
       : undefined;
 
-    if (!coinNetworkId || !amount) {
+    if (!coinNetworkId || amount === undefined || amount === null) {
       res.status(400).json({ error: 'coinNetworkId and amount are required' });
       return;
     }
 
-    if (parseFloat(amount) <= 0) {
-      res.status(400).json({ error: 'Amount must be greater than 0' });
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      res.status(400).json({ error: 'Amount must be a valid positive number' });
       return;
     }
 
@@ -150,7 +149,7 @@ export const adminGetAllDeposits = async (req: AuthRequest, res: Response): Prom
 /** PUT /api/admin/deposits/:id/approve */
 export const approveDeposit = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const adminId = req.userId!;
 
     const deposit = await prisma.deposit.findUnique({ where: { id } });
@@ -185,6 +184,40 @@ export const approveDeposit = async (req: AuthRequest, res: Response): Promise<v
       deposit.coin
     );
 
+    // ── Referral Bonus: 5% of first deposit to referrer (PENDING admin approval) ──
+    try {
+      const depositingUser = await prisma.user.findUnique({
+        where: { id: deposit.userId },
+        select: { id: true, referredById: true },
+      });
+
+      if (depositingUser?.referredById) {
+        // Only trigger on the user's first deposit (check if any referral bonus was already generated)
+        const existingBonus = await prisma.referralBonus.findFirst({
+          where: { referredUserId: deposit.userId },
+        });
+
+        if (!existingBonus) {
+          const bonusAmount = Number(deposit.amount) * 0.05;
+          await prisma.referralBonus.create({
+            data: {
+              referrerId: depositingUser.referredById,
+              referredUserId: deposit.userId,
+              depositId: deposit.id,
+              amount: bonusAmount,
+              coin: deposit.coin,
+              status: 'PENDING',
+            },
+          });
+          logger.info(
+            `Recorded 5% referral bonus (${bonusAmount} ${deposit.coin}) as PENDING for referrer ${depositingUser.referredById}`
+          );
+        }
+      }
+    } catch (refErr) {
+      logger.error('Error generating referral bonus on deposit approval:', refErr);
+    }
+
     res.status(200).json({ data: updatedDeposit, message: 'Deposit approved and balance credited' });
   } catch (error) {
     logger.error('approveDeposit error:', error);
@@ -195,7 +228,7 @@ export const approveDeposit = async (req: AuthRequest, res: Response): Promise<v
 /** PUT /api/admin/deposits/:id/reject */
 export const rejectDeposit = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const adminId = req.userId!;
     const { reason } = req.body;
 

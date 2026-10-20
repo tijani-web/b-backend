@@ -1,12 +1,10 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
-
-const prisma = new PrismaClient();
 
 export const updateKyc = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -87,7 +85,7 @@ export const generate2fa = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const secret = speakeasy.generateSecret({ name: `BlofinPro (${user.email})` });
+    const secret = speakeasy.generateSecret({ name: `BlofinPrime (${user.email})` });
     
     await prisma.user.update({
       where: { id: req.userId },

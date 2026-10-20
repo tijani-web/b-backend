@@ -2,7 +2,8 @@ import { Resend } from 'resend';
 import { logger } from '../utils/logger';
 
 const resend = new Resend(process.env.RESEND_API_KEY || '');
-const FROM = 'BlofinPro <noreply@blofinpro.com>';
+const FROM = 'BlofinPrime <noreply@blofinprime.com>';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const DEV_MODE = !process.env.RESEND_API_KEY;
 
 async function send(to: string, subject: string, html: string): Promise<void> {
@@ -26,7 +27,7 @@ export class EmailService {
       'Password Reset Request',
       `<div style="font-family:sans-serif;padding:24px;background:#0f0f0f;color:#fff;border-radius:8px;">
         <h2 style="color:#f59e0b;">Password Reset</h2>
-        <p>You requested a password reset for your BlofinPro account.</p>
+        <p>You requested a password reset for your BlofinPrime account.</p>
         <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#f59e0b;color:#000;text-decoration:none;border-radius:6px;font-weight:bold;margin:16px 0;">Reset Password</a>
         <p style="font-size:12px;color:#666;">If you didn't request this, ignore this email. Link expires in 1 hour.</p>
       </div>`
@@ -53,7 +54,7 @@ export class EmailService {
       `<div style="font-family:sans-serif;padding:24px;background:#0f0f0f;color:#fff;border-radius:8px;">
         <h2 style="color:${color};">${title}</h2>
         <p>${message}</p>
-        <p>Log in to your <a href="http://localhost:5173/dashboard" style="color:#f59e0b;">BlofinPro dashboard</a> to view details.</p>
+        <p>Log in to your <a href="${FRONTEND_URL}/dashboard" style="color:#f59e0b;">BlofinPrime dashboard</a> to view details.</p>
       </div>`
     );
   }
@@ -79,7 +80,7 @@ export class EmailService {
       `<div style="font-family:sans-serif;padding:24px;background:#0f0f0f;color:#fff;border-radius:8px;">
         <h2 style="color:${color};">${title}</h2>
         <p>${message}</p>
-        <p>Log in to your <a href="http://localhost:5173/dashboard" style="color:#f59e0b;">BlofinPro dashboard</a> to view details.</p>
+        <p>Log in to your <a href="${FRONTEND_URL}/dashboard" style="color:#f59e0b;">BlofinPrime dashboard</a> to view details.</p>
       </div>`
     );
   }
@@ -104,7 +105,7 @@ export class EmailService {
       `<div style="font-family:sans-serif;padding:24px;background:#0f0f0f;color:#fff;border-radius:8px;">
         <h2 style="color:${color};">${title}</h2>
         <p>${message}</p>
-        <p>Log in to your <a href="http://localhost:5173/settings" style="color:#f59e0b;">BlofinPro account settings</a> to manage your verification.</p>
+        <p>Log in to your <a href="${FRONTEND_URL}/settings" style="color:#f59e0b;">BlofinPrime account settings</a> to manage your verification.</p>
       </div>`
     );
   }

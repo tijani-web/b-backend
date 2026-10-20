@@ -9,3 +9,8 @@ seed*.js
 seed*.ts
 *.sqlite
 *.db
+b-frontend/
+*-test.js
+test-*
+list-users.js
+

@@ -2,11 +2,10 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma';
 import { logger } from './utils/logger';
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
 // ─── Route imports ────────────────────────────────────────────────────────────
@@ -25,14 +24,30 @@ import subscriptionRoutes from './routes/subscription.routes';
 import signalsRoutes from './routes/signals.routes';
 import realEstateRoutes from './routes/realestate.routes';
 import stakeRoutes from './routes/stake.routes';
+import referralRoutes from './routes/referral.routes';
 
 // ─── Global middleware ────────────────────────────────────────────────────────
-app.use(cors());
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    return callback(new Error('Blocked by CORS policy'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
-// Serve uploaded files (proofs, KYC) — accessible only via direct URL + auth in prod
-// For now: static serving from /uploads (admin-only file endpoint is in kyc.routes)
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Serve deposit proof screenshots statically (KYC documents are restricted and served via /api/kyc/admin/:id/file)
+app.use('/uploads/proofs', express.static(path.join(process.cwd(), 'uploads', 'proofs')));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -52,9 +67,10 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/signals', signalsRoutes);
 app.use('/api/real-estate', realEstateRoutes);
 app.use('/api/stake', stakeRoutes);
+app.use('/api/referrals', referralRoutes);
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', message: 'BlofinPro Backend is running' });
+  res.json({ status: 'ok', message: 'BlofinPrime Backend is running' });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

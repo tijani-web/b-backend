@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { getPrices, getMarketData } from '../controllers/market.controller';
+import { getPrices, getMarketData, getAllMarketData } from '../controllers/market.controller';
 
 const router = Router();
 
+router.get('/all', getAllMarketData);
 router.get('/prices', getPrices);
 router.get('/data', getMarketData);
 

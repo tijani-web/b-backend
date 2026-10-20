@@ -1,10 +1,9 @@
 import { Response } from 'express';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
 import { EmailService } from '../services/email.service';
-
-const prisma = new PrismaClient();
 
 // ─── User withdrawal addresses ────────────────────────────────────────────────
 
@@ -60,16 +59,18 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
     const userId = req.userId!;
     const { coinNetworkId, amount, toAddress } = req.body;
 
-    if (!coinNetworkId || !amount || !toAddress) {
+    if (!coinNetworkId || amount === undefined || amount === null || !toAddress) {
       res.status(400).json({ error: 'coinNetworkId, amount, and toAddress are required' });
       return;
     }
 
-    const parsedAmount = new Prisma.Decimal(amount);
-    if (parsedAmount.lte(0)) {
-      res.status(400).json({ error: 'Amount must be greater than 0' });
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      res.status(400).json({ error: 'Amount must be a valid positive number' });
       return;
     }
+
+    const parsedAmount = new Prisma.Decimal(numAmount);
 
     const coinNetwork = await prisma.coinNetwork.findUnique({
       where: { id: coinNetworkId },
@@ -80,19 +81,17 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    // Check user balance
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId_coin: { userId, coin: coinNetwork.coin } },
-    });
+    // Atomic: check balance + deduct balance + create withdrawal
+    const withdrawal = await prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.findUnique({
+        where: { userId_coin: { userId, coin: coinNetwork.coin } },
+      });
 
-    if (!wallet || wallet.balance.lt(parsedAmount)) {
-      res.status(400).json({ error: 'Insufficient balance' });
-      return;
-    }
+      if (!wallet || wallet.balance.lt(parsedAmount)) {
+        throw new Error('INSUFFICIENT_BALANCE');
+      }
 
-    // Atomic: deduct balance + create withdrawal (reserve funds)
-    const [withdrawal] = await prisma.$transaction([
-      prisma.withdrawal.create({
+      const created = await tx.withdrawal.create({
         data: {
           userId,
           coinNetworkId,
@@ -102,18 +101,25 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
           toAddress,
           status: 'PENDING',
         },
-      }),
-      prisma.wallet.update({
+      });
+
+      await tx.wallet.update({
         where: { userId_coin: { userId, coin: coinNetwork.coin } },
         data: { balance: { decrement: parsedAmount } },
-      }),
-    ]);
+      });
+
+      return created;
+    });
 
     res.status(201).json({
       data: withdrawal,
       message: 'Withdrawal request submitted. Awaiting admin approval.',
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === 'INSUFFICIENT_BALANCE') {
+      res.status(400).json({ error: 'Insufficient balance' });
+      return;
+    }
     logger.error('createWithdrawal error:', error);
     res.status(500).json({ error: 'Failed to submit withdrawal' });
   }
@@ -192,7 +198,7 @@ export const adminGetAllWithdrawals = async (
 /** PUT /api/admin/withdrawals/:id/approve */
 export const approveWithdrawal = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const adminId = req.userId!;
 
     const withdrawal = await prisma.withdrawal.findUnique({
@@ -238,7 +244,7 @@ export const approveWithdrawal = async (req: AuthRequest, res: Response): Promis
 /** PUT /api/admin/withdrawals/:id/reject */
 export const rejectWithdrawal = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const adminId = req.userId!;
     const { reason } = req.body;
 

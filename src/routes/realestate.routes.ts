@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { authenticate } from '../middlewares/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ─── GET all projects ──────────────────────────────────────────────────────────
 router.get('/projects', authenticate as any, async (req: Request, res: Response) => {
@@ -45,39 +44,50 @@ router.post('/invest', authenticate as any, async (req: Request, res: Response) 
     const userId = (req as any).userId;
     const { projectId, amount } = req.body;
 
-    if (!projectId || !amount) {
+    if (!projectId || amount === undefined || amount === null) {
       return res.status(400).json({ error: 'projectId and amount are required' });
+    }
+
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+      return res.status(400).json({ error: 'Amount must be a valid positive number' });
     }
 
     const project = await prisma.realEstateProject.findUnique({ where: { id: projectId } });
     if (!project) return res.status(404).json({ error: 'Project not found' });
     if (project.status !== 'OPEN') return res.status(400).json({ error: 'Project is closed' });
 
-    const amt = parseFloat(amount);
     if (amt < Number(project.minAmount)) {
       return res.status(400).json({ error: `Minimum investment is $${project.minAmount}` });
     }
 
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId_coin: { userId, coin: 'USDT' } }
+    const result = await prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.findUnique({
+        where: { userId_coin: { userId, coin: 'USDT' } }
+      });
+      
+      if (!wallet || Number(wallet.balance) < amt) {
+        throw new Error('INSUFFICIENT_BALANCE');
+      }
+
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { decrement: amt } }
+      });
+
+      const investment = await tx.realEstateInvestment.create({
+        data: { userId, projectId, amount: amt },
+        include: { project: true },
+      });
+
+      return investment;
     });
-    
-    if (!wallet || Number(wallet.balance) < amt) {
+
+    res.json({ investment: result });
+  } catch (err: any) {
+    if (err.message === 'INSUFFICIENT_BALANCE') {
       return res.status(400).json({ error: 'Insufficient USDT balance' });
     }
-
-    await prisma.wallet.update({
-      where: { id: wallet.id },
-      data: { balance: { decrement: amt } }
-    });
-
-    const investment = await prisma.realEstateInvestment.create({
-      data: { userId, projectId, amount: amt },
-      include: { project: true },
-    });
-
-    res.json({ investment });
-  } catch (err) {
     res.status(500).json({ error: 'Investment failed' });
   }
 });

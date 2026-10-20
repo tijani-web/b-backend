@@ -1,13 +1,11 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+import { prisma } from '../prisma';
 import { generateToken } from '../utils/jwt';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
 import { EmailService } from '../services/email.service';
-
-const prisma = new PrismaClient();
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -29,27 +27,95 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Validate referral code if submitted — unauthorized/fake codes are rejected
+    let referredById: string | null = null;
+    if (referralCode && typeof referralCode === 'string' && referralCode.trim()) {
+      const codeToMatch = referralCode.trim().toUpperCase();
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: codeToMatch },
+      });
+
+      if (!referrer) {
+        res.status(400).json({
+          error: 'Invalid referral code. Fake or unauthorized referral codes cannot be used on this platform.',
+        });
+        return;
+      }
+
+      referredById = referrer.id;
+    }
+
+    // Generate unique referral code for the new user
+    let userReferralCode = '';
+    let isUnique = false;
+    while (!isUnique) {
+      userReferralCode = 'BLF-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+      const existing = await prisma.user.findUnique({ where: { referralCode: userReferralCode } });
+      if (!existing) isUnique = true;
+    }
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
-
     const fullName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
 
-    const user = await prisma.user.create({
+    // Atomic transaction: create user + credit $50 USDT signup bonus + record transaction
+    const [user] = await prisma.$transaction([
+      prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          fullName,
+          phone: phone || undefined,
+          country: country || undefined,
+          currency: currency || 'USD',
+          referralCode: userReferralCode,
+          referredById,
+        },
+      }),
+    ]);
+
+    // Credit automatic $50 USDT signup bonus
+    await prisma.wallet.create({
       data: {
-        email,
-        passwordHash,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        fullName,
-        phone: phone || undefined,
-        country: country || undefined,
-        currency: currency || 'USD',
-        referralCode: referralCode || undefined,
+        userId: user.id,
+        coin: 'USDT',
+        balance: 50.00,
       },
     });
 
+    await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: 'SIGNUP_BONUS',
+        asset: 'USDT',
+        amount: 50.00,
+        usdValue: 50.00,
+        status: 'COMPLETED',
+        txHash: `WELCOME_BONUS_${user.id.replace(/-/g, '').slice(0, 8)}`,
+      },
+    });
+
+    logger.info(`User ${user.email} registered with code ${userReferralCode}. $50 automatic signup bonus credited.`);
+
     const token = generateToken(user.id);
-    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role, kycStatus: user.kycStatus, fullName: user.fullName } });
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        kycStatus: user.kycStatus,
+        fullName: user.fullName,
+        referralCode: user.referralCode,
+      },
+      bonus: {
+        amount: 50.00,
+        asset: 'USDT',
+        message: 'A welcome signup bonus of $50 USDT has been credited to your account!',
+      },
+    });
   } catch (error) {
     logger.error('Register error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -94,7 +160,17 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, role: true, kycStatus: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        kycStatus: true,
+        fullName: true,
+        firstName: true,
+        lastName: true,
+        referralCode: true,
+        createdAt: true,
+      },
     });
 
     if (!user) {
@@ -139,8 +215,8 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       },
     });
 
-    // Send the actual email
-    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
     await EmailService.sendPasswordResetEmail(email, resetLink);
 
     res.status(200).json({ message: 'If that email exists, a reset link has been sent.' });

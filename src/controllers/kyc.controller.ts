@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
 import { EmailService } from '../services/email.service';
-
-const prisma = new PrismaClient();
 
 const ALLOWED_DOC_TYPES = [
   'PASSPORT',
@@ -131,7 +129,7 @@ export const adminGetAllKyc = async (req: AuthRequest, res: Response): Promise<v
 /** PUT /api/admin/kyc/:id/approve */
 export const approveKyc = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const adminId = req.userId!;
 
     const doc = await prisma.kycDocument.findUnique({
@@ -159,7 +157,9 @@ export const approveKyc = async (req: AuthRequest, res: Response): Promise<void>
       }),
     ]);
 
-    await EmailService.sendKycStatusEmail(doc.user.email, 'APPROVED', doc.docType);
+    if ((doc as any).user?.email) {
+      await EmailService.sendKycStatusEmail((doc as any).user.email, 'APPROVED', doc.docType);
+    }
 
     res.status(200).json({ message: 'KYC document approved and user verified' });
   } catch (error) {
@@ -171,7 +171,7 @@ export const approveKyc = async (req: AuthRequest, res: Response): Promise<void>
 /** PUT /api/admin/kyc/:id/reject */
 export const rejectKyc = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const adminId = req.userId!;
     const { reason } = req.body;
 
@@ -205,7 +205,9 @@ export const rejectKyc = async (req: AuthRequest, res: Response): Promise<void> 
       }),
     ]);
 
-    await EmailService.sendKycStatusEmail(doc.user.email, 'REJECTED', doc.docType, reason);
+    if ((doc as any).user?.email) {
+      await EmailService.sendKycStatusEmail((doc as any).user.email, 'REJECTED', doc.docType, reason);
+    }
 
     res.status(200).json({ message: 'KYC document rejected' });
   } catch (error) {
@@ -217,7 +219,7 @@ export const rejectKyc = async (req: AuthRequest, res: Response): Promise<void> 
 /** GET /api/admin/kyc/:id/file — serve the document file to admin */
 export const serveKycFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const doc = await prisma.kycDocument.findUnique({ where: { id } });
 
     if (!doc) {
