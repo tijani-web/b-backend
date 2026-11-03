@@ -76,28 +76,29 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       }),
     ]);
 
-    // Credit automatic $50 USDT signup bonus
+    // Initialize wallet with 0.00 USDT balance
     await prisma.wallet.create({
       data: {
         userId: user.id,
         coin: 'USDT',
-        balance: 50.00,
+        balance: 0.00,
       },
     });
 
+    // Record $15 USDT signup bonus as PENDING admin approval
     await prisma.transaction.create({
       data: {
         userId: user.id,
         type: 'SIGNUP_BONUS',
         asset: 'USDT',
-        amount: 50.00,
-        usdValue: 50.00,
-        status: 'COMPLETED',
+        amount: 15.00,
+        usdValue: 15.00,
+        status: 'PENDING',
         txHash: `WELCOME_BONUS_${user.id.replace(/-/g, '').slice(0, 8)}`,
       },
     });
 
-    logger.info(`User ${user.email} registered with code ${userReferralCode}. $50 automatic signup bonus credited.`);
+    logger.info(`User ${user.email} registered with code ${userReferralCode}. $15 welcome bonus queued as PENDING admin approval.`);
 
     const token = generateToken(user.id);
     res.status(201).json({
@@ -111,9 +112,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         referralCode: user.referralCode,
       },
       bonus: {
-        amount: 50.00,
+        amount: 15.00,
         asset: 'USDT',
-        message: 'A welcome signup bonus of $50 USDT has been credited to your account!',
+        status: 'PENDING',
+        message: 'A welcome signup bonus of $15 USDT is pending review and will be approved shortly.',
       },
     });
   } catch (error) {

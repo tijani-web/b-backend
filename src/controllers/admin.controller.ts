@@ -96,6 +96,20 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
             createdAt: true,
           },
         },
+        transactions: {
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            amount: true,
+            coin: true,
+            category: true,
+            adminNote: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
@@ -124,24 +138,24 @@ export const adminGetStats = async (_req: AuthRequest, res: Response): Promise<v
       depositsByCoin,
       withdrawalsByCoin,
     ] = await Promise.all([
-      prisma.deposit.count({ where: { status: 'PENDING' } }),
-      prisma.withdrawal.count({ where: { status: 'PENDING' } }),
-      prisma.kycDocument.count({ where: { status: 'PENDING' } }),
-      prisma.user.count({ where: { role: 'USER' } }),
-      prisma.deposit.count(),
-      prisma.withdrawal.count(),
+      prisma.deposit.count({ where: { status: 'PENDING' } }).catch(() => 0),
+      prisma.withdrawal.count({ where: { status: 'PENDING' } }).catch(() => 0),
+      prisma.kycDocument.count({ where: { status: 'PENDING' } }).catch(() => 0),
+      prisma.user.count({ where: { role: 'USER' } }).catch(() => 0),
+      prisma.deposit.count().catch(() => 0),
+      prisma.withdrawal.count().catch(() => 0),
       // Per-coin deposit volume (approved only)
       prisma.deposit.groupBy({
         by: ['coin'],
         where: { status: 'APPROVED' },
         _sum: { amount: true },
-      }),
+      }).catch(() => [] as any[]),
       // Per-coin withdrawal volume (approved/completed)
       prisma.withdrawal.groupBy({
         by: ['coin'],
         where: { status: { in: ['APPROVED', 'COMPLETED'] } },
         _sum: { amount: true },
-      }),
+      }).catch(() => [] as any[]),
     ]);
 
     // Convert groupBy results to { BTC: 0.2, ETH: 1.5, ... }
@@ -209,3 +223,118 @@ export const adminDeleteUser = async (req: AuthRequest, res: Response): Promise<
     res.status(500).json({ error: 'Failed to delete user' });
   }
 };
+
+/**
+ * POST /api/admin/users/:id/credit-profit
+ * Manually credit a profit / bonus to a user's USDT wallet.
+ * Body: { category, coin?, amount, note? }
+ */
+export const adminCreditProfit = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.id as string;
+    const { category, coin = 'USDT', amount, note } = req.body as {
+      category: string;
+      coin?: string;
+      amount: number;
+      note?: string;
+    };
+
+    if (!category || !amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      res.status(400).json({ error: 'category and a positive amount are required' });
+      return;
+    }
+
+    const creditAmount = Number(amount);
+
+    // Atomically credit wallet + create transaction record
+    await prisma.$transaction(async (tx) => {
+      // Upsert wallet balance
+      await tx.wallet.upsert({
+        where: { userId_coin: { userId, coin } },
+        update: { balance: { increment: creditAmount } },
+        create: { userId, coin, balance: creditAmount },
+      });
+
+      // Create transaction history record
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: 'PROFIT',
+          asset: coin,
+          amount: creditAmount,
+          status: 'COMPLETED',
+          category,
+          adminNote: note || null,
+        },
+      });
+
+      // Create in-app notification
+      await (tx as any).notification.create({
+        data: {
+          userId,
+          title: '💰 Profit Credited',
+          message: `${creditAmount} ${coin} has been credited to your account${note ? `: ${note}` : ''}.`,
+          type: 'SUCCESS',
+        },
+      });
+    });
+
+    res.status(200).json({ message: `${creditAmount} ${coin} successfully credited to user` });
+  } catch (error) {
+    logger.error('adminCreditProfit error:', error);
+    res.status(500).json({ error: 'Failed to credit profit' });
+  }
+};
+
+/**
+ * POST /api/admin/users/:id/approve-welcome-bonus
+ * Approve the pending $15 welcome bonus for a user.
+ */
+export const adminApproveWelcomeBonus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.id as string;
+
+    // Find the pending welcome bonus transaction (created as SIGNUP_BONUS in auth.controller)
+    const pending = await prisma.transaction.findFirst({
+      where: { userId, type: { in: ['SIGNUP_BONUS', 'WELCOME_BONUS'] as any }, status: 'PENDING' },
+    });
+
+    if (!pending) {
+      res.status(404).json({ error: 'No pending welcome bonus found for this user' });
+      return;
+    }
+
+    const bonusAmount = Number(pending.amount);
+
+    await prisma.$transaction(async (tx) => {
+      // Mark the transaction as completed
+      await tx.transaction.update({
+        where: { id: pending.id },
+        data: { status: 'COMPLETED' },
+      });
+
+      // Credit the USDT wallet
+      await tx.wallet.upsert({
+        where: { userId_coin: { userId, coin: 'USDT' } },
+        update: { balance: { increment: bonusAmount } },
+        create: { userId, coin: 'USDT', balance: bonusAmount },
+      });
+
+      // Notify user
+      await (tx as any).notification.create({
+        data: {
+          userId,
+          title: '🎁 Welcome Bonus Approved!',
+          message: `Your $${bonusAmount} USDT welcome bonus has been approved and added to your wallet.`,
+          type: 'SUCCESS',
+        },
+      });
+    });
+
+    res.status(200).json({ message: `Welcome bonus of ${bonusAmount} USDT approved` });
+  } catch (error) {
+    logger.error('adminApproveWelcomeBonus error:', error);
+    res.status(500).json({ error: 'Failed to approve welcome bonus' });
+  }
+};
+

@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
@@ -161,6 +163,19 @@ export const approveKyc = async (req: AuthRequest, res: Response): Promise<void>
       await EmailService.sendKycStatusEmail((doc as any).user.email, 'APPROVED', doc.docType);
     }
 
+    // In-app notification: KYC approved
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId: doc.userId,
+          title: '✅ KYC Verified',
+          message: `Your ${doc.docType.replace(/_/g, ' ')} document has been approved. Your account is now verified.`,
+          type: 'SUCCESS',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
+
     res.status(200).json({ message: 'KYC document approved and user verified' });
   } catch (error) {
     logger.error('approveKyc error:', error);
@@ -209,6 +224,19 @@ export const rejectKyc = async (req: AuthRequest, res: Response): Promise<void> 
       await EmailService.sendKycStatusEmail((doc as any).user.email, 'REJECTED', doc.docType, reason);
     }
 
+    // In-app notification: KYC rejected
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId: doc.userId,
+          title: '❌ KYC Rejected',
+          message: `Your ${doc.docType.replace(/_/g, ' ')} document was rejected${reason ? `: ${reason}` : '. Please re-submit with a clearer document.'}`,
+          type: 'ERROR',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
+
     res.status(200).json({ message: 'KYC document rejected' });
   } catch (error) {
     logger.error('rejectKyc error:', error);
@@ -227,7 +255,15 @@ export const serveKycFile = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    const absolutePath = `${process.cwd()}${doc.fileUrl}`;
+    const relative = doc.fileUrl.startsWith('/') ? doc.fileUrl.slice(1) : doc.fileUrl;
+    const absolutePath = path.resolve(process.cwd(), relative);
+
+    if (!fs.existsSync(absolutePath)) {
+      logger.warn(`KYC file not found on disk at: ${absolutePath}`);
+      res.status(404).json({ error: 'File not found on server disk' });
+      return;
+    }
+
     res.sendFile(absolutePath);
   } catch (error) {
     logger.error('serveKycFile error:', error);

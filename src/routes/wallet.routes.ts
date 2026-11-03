@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/wallets', authenticate, getWallets);
 router.get('/transactions', authenticate, getTransactionHistory);
+router.get('/history', authenticate, getTransactionHistory);
 router.put('/kyc', authenticate, updateKyc);
 router.put('/password', authenticate, updatePassword);
 router.post('/2fa/generate', authenticate, generate2fa);

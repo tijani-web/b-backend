@@ -12,5 +12,7 @@ seed*.ts
 b-frontend/
 *-test.js
 test-*
+*test*
+*.test.*
 list-users.js
-
+MASTER_TODO*.md

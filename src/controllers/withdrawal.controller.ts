@@ -111,6 +111,19 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
       return created;
     });
 
+    // In-app notification: withdrawal submitted
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId,
+          title: '📤 Withdrawal Initiated',
+          message: `Your withdrawal of ${numAmount} ${coinNetwork.coin} to ${toAddress} is being processed.`,
+          type: 'INFO',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
+
     res.status(201).json({
       data: withdrawal,
       message: 'Withdrawal request submitted. Awaiting admin approval.',
@@ -234,6 +247,19 @@ export const approveWithdrawal = async (req: AuthRequest, res: Response): Promis
       withdrawal.toAddress
     );
 
+    // In-app notification: withdrawal completed
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId: withdrawal.userId,
+          title: '✅ Withdrawal Completed',
+          message: `Your withdrawal of ${withdrawal.amount} ${withdrawal.coin} has been processed successfully.`,
+          type: 'SUCCESS',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
+
     res.status(200).json({ data: updated, message: 'Withdrawal approved and marked as completed' });
   } catch (error) {
     logger.error('approveWithdrawal error:', error);
@@ -287,6 +313,19 @@ export const rejectWithdrawal = async (req: AuthRequest, res: Response): Promise
       withdrawal.toAddress,
       reason
     );
+
+    // In-app notification: withdrawal rejected + refunded
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId: withdrawal.userId,
+          title: '❌ Withdrawal Rejected',
+          message: `Your withdrawal of ${withdrawal.amount} ${withdrawal.coin} was rejected${reason ? `: ${reason}` : ''}. Your balance has been refunded.`,
+          type: 'ERROR',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
 
     res.status(200).json({ data: updated, message: 'Withdrawal rejected and balance refunded' });
   } catch (error) {

@@ -3,7 +3,7 @@ import { logger } from '../utils/logger';
 
 const resend = new Resend(process.env.RESEND_API_KEY || '');
 const FROM = 'BlofinPrime <noreply@blofinprime.com>';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://b-backend-kv4v.onrender.com';
 const DEV_MODE = !process.env.RESEND_API_KEY;
 
 async function send(to: string, subject: string, html: string): Promise<void> {

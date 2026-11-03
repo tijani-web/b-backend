@@ -174,28 +174,34 @@ export const adminApproveReferralBonus = async (req: AuthRequest, res: Response)
       return;
     }
 
+    const rawCustomAmount = req.body?.customAmount !== undefined ? parseFloat(req.body.customAmount) : undefined;
+    const finalAmount = rawCustomAmount !== undefined && !isNaN(rawCustomAmount) && rawCustomAmount >= 0
+      ? rawCustomAmount
+      : Number(bonus.amount);
+
     // Atomic transaction: mark approved + credit referrer's wallet + record transaction
     const [updatedBonus] = await prisma.$transaction([
       prisma.referralBonus.update({
         where: { id },
         data: {
           status: 'APPROVED',
+          amount: finalAmount,
           approvedBy: adminId,
           approvedAt: new Date(),
         },
       }),
       prisma.wallet.upsert({
         where: { userId_coin: { userId: bonus.referrerId, coin: bonus.coin } },
-        update: { balance: { increment: bonus.amount } },
-        create: { userId: bonus.referrerId, coin: bonus.coin, balance: bonus.amount },
+        update: { balance: { increment: finalAmount } },
+        create: { userId: bonus.referrerId, coin: bonus.coin, balance: finalAmount },
       }),
       prisma.transaction.create({
         data: {
           userId: bonus.referrerId,
           type: 'REFERRAL_BONUS',
           asset: bonus.coin,
-          amount: bonus.amount,
-          usdValue: bonus.amount,
+          amount: finalAmount,
+          usdValue: finalAmount,
           status: 'COMPLETED',
           txHash: `REF_BONUS_${bonus.id.replace(/-/g, '').slice(0, 12)}`,
         },

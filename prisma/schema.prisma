@@ -40,6 +40,7 @@ model User {
   signalPurchases      SignalPurchase[]
   realEstateInvestments RealEstateInvestment[]
   stakes               Stake[]
+  notifications        Notification[]
   referralBonusesEarned ReferralBonus[] @relation("ReferrerBonuses")
   referralBonusesGiven  ReferralBonus[] @relation("ReferredUserBonuses")
 }
@@ -70,12 +71,14 @@ model Transaction {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  type      String   // "DEPOSIT" | "WITHDRAWAL" | "TRADE"
+  type      String   // "DEPOSIT" | "WITHDRAWAL" | "TRADE" | "PROFIT" | "BONUS" | "WELCOME_BONUS"
   asset     String
   amount    Decimal
   usdValue  Decimal?
   status    String   // "PENDING" | "COMPLETED" | "FAILED"
   txHash    String?
+  category  String?  // "TRADE" | "COPY_TRADE" | "MINING" | "REAL_ESTATE" | "STAKE" | "BONUS"
+  adminNote String?  // optional note from admin for manual credits
   createdAt DateTime @default(now())
 }
 
@@ -344,4 +347,17 @@ model ReferralBonus {
   rejectionReason String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")  // INFO | SUCCESS | WARNING | ERROR
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

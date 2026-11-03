@@ -65,6 +65,23 @@ const kycStorage = multer.diskStorage({
   },
 });
 
+const avatarsDir = path.join(uploadDir, 'avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+
+// Storage for copy trader avatars
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, avatarsDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar-${uniqueSuffix}${ext}`);
+  },
+});
+
 export const uploadProof = multer({
   storage: proofStorage,
   fileFilter,
@@ -76,6 +93,18 @@ export const uploadKycFile = multer({
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
 }).single('document');
+
+export const uploadAvatar = multer({
+  storage: avatarStorage,
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only image files are allowed.'));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+}).single('avatar');
 
 // Convert local disk path to a served URL path
 export const getFileUrl = (filePath: string): string => {

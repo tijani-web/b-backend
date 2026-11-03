@@ -91,4 +91,68 @@ router.post('/create', authenticate as any, async (req: Request, res: Response) 
   }
 });
 
+// ─── POST cancel stake ─────────────────────────────────────────────────────────
+router.post('/cancel/:id', authenticate as any, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const id = req.params.id as string;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const stake = await tx.stake.findFirst({
+        where: { id, userId, status: 'ACTIVE' }
+      });
+
+      if (!stake) {
+        throw new Error('STAKE_NOT_FOUND');
+      }
+
+      // Mark stake as CANCELLED
+      const updated = await tx.stake.update({
+        where: { id: stake.id },
+        data: { status: 'CANCELLED' }
+      });
+
+      // Refund staked amount back to user's wallet
+      const wallet = await tx.wallet.findUnique({
+        where: { userId_coin: { userId, coin: stake.coin } }
+      });
+
+      if (wallet) {
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: { increment: stake.amount } }
+        });
+      } else {
+        await tx.wallet.create({
+          data: {
+            userId,
+            coin: stake.coin,
+            balance: stake.amount
+          }
+        });
+      }
+
+      // Create notification for refund
+      await tx.notification.create({
+        data: {
+          userId,
+          title: 'Stake Cancelled',
+          message: `Your stake of ${stake.amount} ${stake.coin} has been cancelled and refunded to your wallet.`,
+          type: 'INFO',
+          read: false
+        }
+      });
+
+      return updated;
+    });
+
+    res.json({ success: true, message: 'Stake cancelled and refunded', stake: result });
+  } catch (err: any) {
+    if (err.message === 'STAKE_NOT_FOUND') {
+      return res.status(404).json({ error: 'Active stake not found' });
+    }
+    res.status(500).json({ error: 'Failed to cancel stake' });
+  }
+});
+
 export default router;

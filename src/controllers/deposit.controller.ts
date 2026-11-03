@@ -69,6 +69,19 @@ export const createDeposit = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
+    // In-app notification: deposit submitted
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId,
+          title: '📥 Deposit Submitted',
+          message: `Your deposit of ${numAmount} ${coinNetwork.coin} has been submitted and is awaiting admin approval.`,
+          type: 'INFO',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
+
     res.status(201).json({
       data: deposit,
       message: 'Deposit submitted successfully. Awaiting admin approval.',
@@ -176,13 +189,26 @@ export const approveDeposit = async (req: AuthRequest, res: Response): Promise<v
       }),
     ]);
 
-    // Notify user
+    // Notify user via email
     await EmailService.sendDepositStatusEmail(
       (updatedDeposit as any).user.email,
       'APPROVED',
       deposit.amount.toString(),
       deposit.coin
     );
+
+    // In-app notification: deposit approved
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId: deposit.userId,
+          title: '✅ Deposit Approved',
+          message: `Your deposit of ${deposit.amount} ${deposit.coin} has been approved and credited to your wallet.`,
+          type: 'SUCCESS',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
 
     // ── Referral Bonus: 5% of first deposit to referrer (PENDING admin approval) ──
     try {
@@ -262,6 +288,19 @@ export const rejectDeposit = async (req: AuthRequest, res: Response): Promise<vo
       deposit.coin,
       reason
     );
+
+    // In-app notification: deposit rejected
+    try {
+      await (prisma as any).notification.create({
+        data: {
+          userId: deposit.userId,
+          title: '❌ Deposit Rejected',
+          message: `Your deposit of ${deposit.amount} ${deposit.coin} was rejected${reason ? `: ${reason}` : '. Please contact support for details.'}.`,
+          type: 'ERROR',
+          isRead: false,
+        },
+      });
+    } catch (_) {}
 
     res.status(200).json({ data: updated, message: 'Deposit rejected' });
   } catch (error) {

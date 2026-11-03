@@ -25,14 +25,13 @@ import signalsRoutes from './routes/signals.routes';
 import realEstateRoutes from './routes/realestate.routes';
 import stakeRoutes from './routes/stake.routes';
 import referralRoutes from './routes/referral.routes';
+import notificationRoutes from './routes/notification.routes';
 
 // ─── Global middleware ────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://www.blofinprime.com',
   'https://blofinprime.com',
-  'https://www.blofinpro.com',
-  'https://blofinpro.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4173',
@@ -55,8 +54,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve deposit proof screenshots statically (KYC documents are restricted and served via /api/kyc/admin/:id/file)
+// Serve deposit proof screenshots and trader avatars statically (KYC documents are restricted and served via /api/kyc/admin/:id/file)
 app.use('/uploads/proofs', express.static(path.join(process.cwd(), 'uploads', 'proofs')));
+app.use('/uploads/avatars', express.static(path.join(process.cwd(), 'uploads', 'avatars')));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -77,6 +77,7 @@ app.use('/api/signals', signalsRoutes);
 app.use('/api/real-estate', realEstateRoutes);
 app.use('/api/stake', stakeRoutes);
 app.use('/api/referrals', referralRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', message: 'BlofinPrime Backend is running' });
