@@ -136,7 +136,8 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
           type: true,
           status: true,
           amount: true,
-          coin: true,
+          asset: true,
+          usdValue: true,
           category: true,
           adminNote: true,
           createdAt: true,
@@ -150,7 +151,7 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
           where: { userId: id },
           orderBy: { createdAt: 'desc' },
           take: 50,
-          select: { id: true, type: true, status: true, amount: true, coin: true, createdAt: true },
+          select: { id: true, type: true, status: true, amount: true, asset: true, createdAt: true },
         });
       } catch {
         transactions = [];
