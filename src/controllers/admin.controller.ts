@@ -62,6 +62,7 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const id = req.params.id as string;
 
+    // Fetch core user data
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
@@ -73,16 +74,36 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
         kycStatus: true,
         twoFactorEnabled: true,
         createdAt: true,
-        wallets: true,
+        wallets: {
+          select: { id: true, coin: true, balance: true },
+        },
         deposits: {
           orderBy: { createdAt: 'desc' },
           take: 50,
-          include: { coinNetwork: { select: { label: true } } },
+          select: {
+            id: true,
+            coin: true,
+            network: true,
+            amount: true,
+            txHash: true,
+            status: true,
+            rejectionReason: true,
+            createdAt: true,
+          },
         },
         withdrawals: {
           orderBy: { createdAt: 'desc' },
           take: 50,
-          include: { coinNetwork: { select: { label: true } } },
+          select: {
+            id: true,
+            coin: true,
+            network: true,
+            amount: true,
+            txHash: true,
+            status: true,
+            rejectionReason: true,
+            createdAt: true,
+          },
         },
         kycDocuments: {
           orderBy: { createdAt: 'desc' },
@@ -96,20 +117,6 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
             createdAt: true,
           },
         },
-        transactions: {
-          orderBy: { createdAt: 'desc' },
-          take: 50,
-          select: {
-            id: true,
-            type: true,
-            status: true,
-            amount: true,
-            coin: true,
-            category: true,
-            adminNote: true,
-            createdAt: true,
-          },
-        },
       },
     });
 
@@ -118,7 +125,40 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    res.status(200).json({ data: user });
+    // Fetch transactions separately so a missing column never breaks the whole request
+    let transactions: any[] = [];
+    try {
+      transactions = await prisma.transaction.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          amount: true,
+          coin: true,
+          category: true,
+          adminNote: true,
+          createdAt: true,
+        },
+      });
+    } catch (txErr) {
+      // Graceful degradation — transactions table may not have category/adminNote yet
+      logger.warn('adminGetUser: transactions fetch failed (schema mismatch?), retrying without optional fields:', txErr);
+      try {
+        transactions = await (prisma.transaction as any).findMany({
+          where: { userId: id },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: { id: true, type: true, status: true, amount: true, coin: true, createdAt: true },
+        });
+      } catch {
+        transactions = [];
+      }
+    }
+
+    res.status(200).json({ data: { ...user, transactions } });
   } catch (error) {
     logger.error('adminGetUser error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
