@@ -99,7 +99,6 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
             coin: true,
             network: true,
             amount: true,
-            txHash: true,
             status: true,
             rejectionReason: true,
             createdAt: true,
