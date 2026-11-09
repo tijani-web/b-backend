@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { prisma } from './prisma';
 import { logger } from './utils/logger';
 
@@ -55,8 +56,19 @@ app.use(cors({
 app.use(express.json());
 
 // Serve deposit proof screenshots and trader avatars statically (KYC documents are restricted and served via /api/kyc/admin/:id/file)
-app.use('/uploads/proofs', express.static(path.join(process.cwd(), 'uploads', 'proofs')));
-app.use('/uploads/avatars', express.static(path.join(process.cwd(), 'uploads', 'avatars')));
+const uploadsDir = path.join(process.cwd(), 'uploads');
+app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads/proofs', express.static(path.join(uploadsDir, 'proofs')));
+app.use('/uploads/avatars', express.static(path.join(uploadsDir, 'avatars')));
+
+// Direct file access helper with clear error handling for proofs
+app.get('/uploads/proofs/:filename', (req, res) => {
+  const file = path.join(uploadsDir, 'proofs', req.params.filename);
+  if (fs.existsSync(file)) {
+    return res.sendFile(file);
+  }
+  return res.status(404).json({ error: 'Deposit proof image not found on server' });
+});
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

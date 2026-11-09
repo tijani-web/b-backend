@@ -86,6 +86,7 @@ export const adminGetUser = async (req: AuthRequest, res: Response): Promise<voi
             network: true,
             amount: true,
             txHash: true,
+            proofUrl: true,
             status: true,
             rejectionReason: true,
             createdAt: true,
