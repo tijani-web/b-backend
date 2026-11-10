@@ -3,6 +3,15 @@ import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
 
+export const normalizeCoinSymbol = (coin: string): string => {
+  const c = (coin || '').trim().toUpperCase();
+  if (c === 'SOLANA') return 'SOL';
+  if (c === 'BITCOIN') return 'BTC';
+  if (c === 'ETHEREUM') return 'ETH';
+  if (c === 'TETHER') return 'USDT';
+  return c;
+};
+
 // ─── Public / User ────────────────────────────────────────────────────────────
 
 /** GET /api/coins — all enabled CoinNetworks with their active wallet address */
@@ -46,7 +55,11 @@ export const adminGetAllCoins = async (_req: AuthRequest, res: Response): Promis
 /** POST /api/admin/coins */
 export const createCoin = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { coin, network, label, sortOrder } = req.body;
+    const rawCoin = (req.body.coin || '').trim().toUpperCase();
+    const network = (req.body.network || '').trim();
+    const label = (req.body.label || '').trim();
+    const sortOrder = req.body.sortOrder;
+    const coin = normalizeCoinSymbol(rawCoin);
 
     if (!coin || !network || !label) {
       res.status(400).json({ error: 'coin, network, and label are required' });
@@ -140,8 +153,38 @@ export const updateWalletAddress = async (req: AuthRequest, res: Response): Prom
 export const deleteCoin = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+
+    const coin = await prisma.coinNetwork.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { deposits: true, withdrawals: true },
+        },
+      },
+    });
+
+    if (!coin) {
+      res.status(404).json({ error: 'Coin not found' });
+      return;
+    }
+
+    // 1. Delete associated admin wallet addresses
+    await prisma.adminWalletAddress.deleteMany({ where: { coinNetworkId: id } });
+
+    // 2. If deposits or withdrawals exist referencing this coinNetwork, delete associated referral bonuses & records so hard delete succeeds
+    if (coin._count.deposits > 0 || coin._count.withdrawals > 0) {
+      const deposits = await prisma.deposit.findMany({ where: { coinNetworkId: id }, select: { id: true } });
+      const depositIds = deposits.map((d) => d.id);
+      if (depositIds.length > 0) {
+        await prisma.referralBonus.deleteMany({ where: { depositId: { in: depositIds } } });
+        await prisma.deposit.deleteMany({ where: { id: { in: depositIds } } });
+      }
+      await prisma.withdrawal.deleteMany({ where: { coinNetworkId: id } });
+    }
+
+    // 3. Delete the coinNetwork
     await prisma.coinNetwork.delete({ where: { id } });
-    res.status(200).json({ message: 'Coin deleted' });
+    res.status(200).json({ message: 'Coin deleted successfully' });
   } catch (error) {
     logger.error('deleteCoin error:', error);
     res.status(500).json({ error: 'Failed to delete coin' });

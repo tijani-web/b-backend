@@ -3,6 +3,7 @@ import { prisma } from '../prisma';
 import { AuthRequest } from '../middlewares/auth';
 import { logger } from '../utils/logger';
 import { EmailService } from '../services/email.service';
+import { normalizeCoinSymbol } from './coin.controller';
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
@@ -54,12 +55,13 @@ export const createDeposit = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const walletAddressUsed = coinNetwork.walletAddresses[0].address;
+    const coin = normalizeCoinSymbol(coinNetwork.coin);
 
     const deposit = await prisma.deposit.create({
       data: {
         userId,
         coinNetworkId,
-        coin: coinNetwork.coin,
+        coin,
         network: coinNetwork.network,
         amount,
         txHash: txHash || null,
@@ -175,17 +177,19 @@ export const approveDeposit = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    const targetCoin = normalizeCoinSymbol(deposit.coin);
+
     // Atomic: credit wallet + mark approved
     const [updatedDeposit] = await prisma.$transaction([
       prisma.deposit.update({
         where: { id },
-        data: { status: 'APPROVED', reviewedBy: adminId, reviewedAt: new Date() },
+        data: { status: 'APPROVED', coin: targetCoin, reviewedBy: adminId, reviewedAt: new Date() },
         include: { user: { select: { email: true } } },
       }),
       prisma.wallet.upsert({
-        where: { userId_coin: { userId: deposit.userId, coin: deposit.coin } },
+        where: { userId_coin: { userId: deposit.userId, coin: targetCoin } },
         update: { balance: { increment: deposit.amount } },
-        create: { userId: deposit.userId, coin: deposit.coin, balance: deposit.amount },
+        create: { userId: deposit.userId, coin: targetCoin, balance: deposit.amount },
       }),
     ]);
 

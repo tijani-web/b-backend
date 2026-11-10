@@ -51,6 +51,35 @@ export const getWallets = async (req: AuthRequest, res: Response): Promise<void>
       where: { userId },
     });
 
+    // Merge any non-standard alias wallets (e.g. SOLANA -> SOL, BITCOIN -> BTC) into their canonical wallet
+    const ALIAS_MAP: Record<string, string> = {
+      SOLANA: 'SOL',
+      BITCOIN: 'BTC',
+      ETHEREUM: 'ETH',
+      TETHER: 'USDT',
+    };
+
+    let needsRefetch = false;
+    for (const w of wallets) {
+      const canonical = ALIAS_MAP[w.coin.toUpperCase()];
+      if (canonical && canonical !== w.coin) {
+        const bal = Number(w.balance) || 0;
+        if (bal > 0) {
+          await prisma.wallet.upsert({
+            where: { userId_coin: { userId, coin: canonical } },
+            update: { balance: { increment: bal } },
+            create: { userId, coin: canonical, balance: bal },
+          });
+        }
+        await prisma.wallet.delete({ where: { id: w.id } }).catch(() => null);
+        needsRefetch = true;
+      }
+    }
+
+    if (needsRefetch) {
+      wallets = await prisma.wallet.findMany({ where: { userId } });
+    }
+
     // If user has no wallets yet, initialize standard primary wallets (USDT, BTC, ETH, SOL)
     if (wallets.length === 0) {
       const defaultCoins = ['USDT', 'BTC', 'ETH', 'SOL'];
