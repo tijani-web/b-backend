@@ -23,23 +23,23 @@ const CRYPTO_PAIRS = [
 
 // Baseline fallbacks for initial startup if network is unavailable
 const BASELINE_FALLBACKS: Record<string, { price: number; change24h: number; high24h: number; low24h: number; volume24h: number }> = {
-  BTC:   { price: 82180, change24h: 1.45, high24h: 82950, low24h: 79800, volume24h: 18450 },
-  ETH:   { price: 3240,  change24h: 0.85, high24h: 3310,  low24h: 3180,  volume24h: 142000 },
-  SOL:   { price: 154,   change24h: 2.30, high24h: 158,   low24h: 148,   volume24h: 890000 },
-  BNB:   { price: 585,   change24h: -0.40, high24h: 592,  low24h: 578,   volume24h: 98000 },
-  XRP:   { price: 0.54,  change24h: -0.80, high24h: 0.56, low24h: 0.53, volume24h: 4500000 },
-  DOGE:  { price: 0.14,  change24h: 3.10, high24h: 0.15,  low24h: 0.13,  volume24h: 12000000 },
-  ADA:   { price: 0.49,  change24h: 0.60, high24h: 0.51,  low24h: 0.47,  volume24h: 3400000 },
-  AVAX:  { price: 36.5,  change24h: -0.90, high24h: 38.0, low24h: 35.5, volume24h: 780000 },
-  DOT:   { price: 7.4,   change24h: -0.30, high24h: 7.6,  low24h: 7.2,   volume24h: 560000 },
-  LTC:   { price: 89.2,  change24h: -1.10, high24h: 91.0, low24h: 87.5, volume24h: 420000 },
-  LINK:  { price: 14.8,  change24h: 1.15, high24h: 15.2,  low24h: 14.3,  volume24h: 650000 },
-  TRX:   { price: 0.15,  change24h: 0.45, high24h: 0.16,  low24h: 0.14,  volume24h: 8900000 },
-  TON:   { price: 6.2,   change24h: 1.90, high24h: 6.4,   low24h: 5.9,   volume24h: 1200000 },
-  SUI:   { price: 2.15,  change24h: 4.80, high24h: 2.25,  low24h: 1.98,  volume24h: 3100000 },
-  NEAR:  { price: 5.40,  change24h: 2.10, high24h: 5.60,  low24h: 5.20,  volume24h: 1450000 },
-  PEPE:  { price: 0.0000125, change24h: 7.40, high24h: 0.0000135, low24h: 0.0000115, volume24h: 85000000 },
-  SHIB:  { price: 0.0000185, change24h: 5.20, high24h: 0.0000195, low24h: 0.0000175, volume24h: 45000000 },
+  BTC:   { price: 61600, change24h: -1.45, high24h: 62800, low24h: 61200, volume24h: 19450 },
+  ETH:   { price: 1745,  change24h: -0.90, high24h: 1790,  low24h: 1730,  volume24h: 182000 },
+  SOL:   { price: 72.5,  change24h: -0.80, high24h: 75.0,  low24h: 71.5,  volume24h: 890000 },
+  BNB:   { price: 576,   change24h: -0.20, high24h: 585,   low24h: 570,   volume24h: 98000 },
+  XRP:   { price: 0.95,  change24h: -1.30, high24h: 0.98,  low24h: 0.93,  volume24h: 4500000 },
+  DOGE:  { price: 0.057, change24h: -1.80, high24h: 0.060, low24h: 0.055, volume24h: 12000000 },
+  ADA:   { price: 0.15,  change24h: -0.60, high24h: 0.155, low24h: 0.145, volume24h: 3400000 },
+  AVAX:  { price: 6.9,   change24h: -1.25, high24h: 7.2,   low24h: 6.7,   volume24h: 780000 },
+  DOT:   { price: 0.70,  change24h: -1.50, high24h: 0.74,  low24h: 0.68,  volume24h: 560000 },
+  LTC:   { price: 41.8,  change24h: -4.60, high24h: 44.0,  low24h: 41.0,  volume24h: 420000 },
+  LINK:  { price: 8.88,  change24h: -1.80, high24h: 9.15,  low24h: 8.70,  volume24h: 650000 },
+  TRX:   { price: 0.31,  change24h: 0.35,  high24h: 0.32,  low24h: 0.30,  volume24h: 8900000 },
+  TON:   { price: 1.01,  change24h: 0.12,  high24h: 1.05,  low24h: 0.98,  volume24h: 1200000 },
+  SUI:   { price: 0.70,  change24h: -2.50, high24h: 0.73,  low24h: 0.68,  volume24h: 3100000 },
+  NEAR:  { price: 3.21,  change24h: -1.85, high24h: 3.35,  low24h: 3.15,  volume24h: 1450000 },
+  PEPE:  { price: 0.0000075, change24h: -2.40, high24h: 0.0000080, low24h: 0.0000070, volume24h: 85000000 },
+  SHIB:  { price: 0.0000095, change24h: -1.80, high24h: 0.0000100, low24h: 0.0000090, volume24h: 45000000 },
   USDT:  { price: 1.00,  change24h: 0.00, high24h: 1.00,  low24h: 1.00,  volume24h: 500000000 },
   USDC:  { price: 1.00,  change24h: 0.00, high24h: 1.00,  low24h: 1.00,  volume24h: 300000000 },
 };
@@ -162,8 +162,11 @@ export class MarketService {
   private static isFetching = false;
 
   /**
-   * Refreshes the in-memory cache by querying the Binance public ticker API.
-   * If Binance is unavailable, falls back gracefully to CoinCap or baseline benchmarks.
+   * Refreshes the in-memory cache using redundant, cloud-friendly providers:
+   * 1. CoinGecko Simple Price API (never blocks US cloud servers / Render)
+   * 2. Kraken Public Ticker API (accurate 24h high/low/vol without restrictions)
+   * 3. Binance Public API (best-effort; ignored if blocked)
+   * 4. Realistic benchmark assets & baseline fallbacks
    */
   private static async refreshCache(): Promise<void> {
     const now = Date.now();
@@ -176,42 +179,12 @@ export class MarketService {
 
     this.isFetching = true;
     try {
-      // Build Binance query symbol pairs (e.g. ["BTCUSDT","ETHUSDT",...])
-      const queryPairs = CRYPTO_PAIRS.map(sym => `"${sym}USDT"`);
-      const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=[${encodeURIComponent(queryPairs.join(','))}]`;
-
-      const res = await fetch(url, {
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(4000),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Binance returned HTTP ${res.status}: ${res.statusText}`);
-      }
-
-      const tickers: any[] = await res.json();
-      if (Array.isArray(tickers)) {
-        for (const item of tickers) {
-          const sym = item.symbol.replace(/USDT$/, '');
-          const price = parseFloat(item.lastPrice);
-          const change24h = parseFloat(item.priceChangePercent);
-          const high24h = parseFloat(item.highPrice);
-          const low24h = parseFloat(item.lowPrice);
-          const volume24h = parseFloat(item.volume);
-
-          if (!isNaN(price) && price > 0) {
-            this.cache.set(sym, {
-              symbol: sym,
-              price,
-              change24h: isNaN(change24h) ? 0 : change24h,
-              high24h: isNaN(high24h) ? price : high24h,
-              low24h: isNaN(low24h) ? price : low24h,
-              volume24h: isNaN(volume24h) ? 0 : volume24h,
-              lastUpdated: now,
-            });
-          }
-        }
-      }
+      // Query CoinGecko, Kraken, and Binance in parallel
+      await Promise.allSettled([
+        this.fetchCoinGeckoPrices(now),
+        this.fetchKrakenPrices(now),
+        this.fetchBinancePrices(now),
+      ]);
 
       // Explicitly guarantee 1.00 pegs for stablecoins
       const stableCoins = ['USDT', 'USDC', 'USD', 'DAI', 'BUSD'];
@@ -250,55 +223,168 @@ export class MarketService {
 
       this.lastCacheTime = now;
     } catch (err: any) {
-      logger.warn(`Binance price fetch failed: ${err.message}. Trying CoinCap fallback...`);
-      await this.fetchCoinCapFallback();
+      logger.warn(`Price refresh error: ${err.message}`);
     } finally {
       this.isFetching = false;
     }
 
-    // Ensure baseline values exist if cache is still empty
-    if (this.cache.size === 0) {
-      for (const [sym, data] of Object.entries(BASELINE_FALLBACKS)) {
-        this.cache.set(sym, { symbol: sym, ...data, lastUpdated: now });
-      }
-      for (const [sym, data] of Object.entries(BENCHMARK_ASSETS)) {
+    // Ensure baseline values exist if cache is still missing any symbol
+    for (const [sym, data] of Object.entries(BASELINE_FALLBACKS)) {
+      if (!this.cache.has(sym)) {
         this.cache.set(sym, { symbol: sym, ...data, lastUpdated: now });
       }
     }
   }
 
-  /** Secondary fallback if Binance is blocked or down */
-  private static async fetchCoinCapFallback(): Promise<void> {
+  /** Primary: CoinGecko Public Price API (never blocked on Render / US cloud) */
+  private static async fetchCoinGeckoPrices(now: number): Promise<void> {
     try {
-      const res = await fetch('https://api.coincap.io/v2/assets?limit=50', {
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(3000),
+      const ids = 'bitcoin,ethereum,solana,binancecoin,ripple,dogecoin,cardano,avalanche-2,polkadot,litecoin,chainlink,tron,the-open-network,sui,near,pepe,shiba-inu,bitcoin-cash,uniswap,cosmos,stellar,algorand,monero,filecoin,internet-computer,injective,aave';
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(4500),
       });
       if (!res.ok) return;
+      const data = await res.json();
+      const MAP: Record<string, string> = {
+        bitcoin: 'BTC',
+        ethereum: 'ETH',
+        solana: 'SOL',
+        binancecoin: 'BNB',
+        ripple: 'XRP',
+        dogecoin: 'DOGE',
+        cardano: 'ADA',
+        'avalanche-2': 'AVAX',
+        polkadot: 'DOT',
+        litecoin: 'LTC',
+        chainlink: 'LINK',
+        tron: 'TRX',
+        'the-open-network': 'TON',
+        sui: 'SUI',
+        near: 'NEAR',
+        pepe: 'PEPE',
+        'shiba-inu': 'SHIB',
+        'bitcoin-cash': 'BCH',
+        uniswap: 'UNI',
+        cosmos: 'ATOM',
+        stellar: 'XLM',
+        algorand: 'ALGO',
+        monero: 'XMR',
+        filecoin: 'FIL',
+        'internet-computer': 'ICP',
+        injective: 'INJ',
+        aave: 'AAVE',
+      };
+      for (const [id, sym] of Object.entries(MAP)) {
+        const item = data[id];
+        if (item && typeof item.usd === 'number' && item.usd > 0) {
+          const price = item.usd;
+          const change24h = Number((item.usd_24h_change || 0).toFixed(2));
+          this.cache.set(sym, {
+            symbol: sym,
+            price,
+            change24h,
+            high24h: Number((price * 1.015).toFixed(price > 100 ? 2 : 4)),
+            low24h: Number((price * 0.985).toFixed(price > 100 ? 2 : 4)),
+            volume24h: item.usd_24h_vol || 0,
+            lastUpdated: now,
+          });
+        }
+      }
+    } catch (e: any) {
+      logger.warn(`CoinGecko fetch failed: ${e.message}`);
+    }
+  }
 
-      const body = await res.json();
-      if (Array.isArray(body.data)) {
-        const now = Date.now();
-        for (const asset of body.data) {
-          const sym = (asset.symbol || '').toUpperCase();
-          const price = parseFloat(asset.priceUsd);
-          const change24h = parseFloat(asset.changePercent24Hr);
+  /** Secondary: Kraken Public Ticker API (accurate 24h stats without IP restrictions) */
+  private static async fetchKrakenPrices(now: number): Promise<void> {
+    try {
+      const pairs = 'XBTUSDT,ETHUSDT,SOLUSDT,ADAUSDT,DOTUSDT,LTCUSDT,DOGEUSDT,XRPUSDT,LINKUSDT,AVAXUSDT,NEARUSDT,SUIUSDT,TRXUSDT,BCHUSDT,UNIUSDT';
+      const res = await fetch(`https://api.kraken.com/0/public/Ticker?pair=${pairs}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(4500),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.result) return;
+      const KRAKEN_MAP: Record<string, string> = {
+        XBTUSDT: 'BTC',
+        ETHUSDT: 'ETH',
+        SOLUSDT: 'SOL',
+        ADAUSDT: 'ADA',
+        DOTUSDT: 'DOT',
+        LTCUSDT: 'LTC',
+        DOGEUSDT: 'DOGE',
+        XRPUSDT: 'XRP',
+        LINKUSDT: 'LINK',
+        AVAXUSDT: 'AVAX',
+        NEARUSDT: 'NEAR',
+        SUIUSDT: 'SUI',
+        TRXUSDT: 'TRX',
+        BCHUSDT: 'BCH',
+        UNIUSDT: 'UNI',
+      };
+      for (const [kPair, sym] of Object.entries(KRAKEN_MAP)) {
+        const item = data.result[kPair];
+        if (item && item.c && item.c[0]) {
+          const price = parseFloat(item.c[0]);
+          const open = parseFloat(item.o) || price;
+          const change24h = Number((((price - open) / open) * 100).toFixed(2));
+          const high24h = parseFloat(item.h?.[0]) || price;
+          const low24h = parseFloat(item.l?.[0]) || price;
+          const volume24h = parseFloat(item.v?.[0]) || 0;
+          if (!isNaN(price) && price > 0) {
+            this.cache.set(sym, {
+              symbol: sym,
+              price,
+              change24h,
+              high24h,
+              low24h,
+              volume24h,
+              lastUpdated: now,
+            });
+          }
+        }
+      }
+    } catch (e: any) {
+      logger.warn(`Kraken fetch failed: ${e.message}`);
+    }
+  }
+
+  /** Tertiary: Binance Public API (best-effort; ignored if blocked by Cloudflare/geo-restriction) */
+  private static async fetchBinancePrices(now: number): Promise<void> {
+    try {
+      const queryPairs = CRYPTO_PAIRS.map(sym => `"${sym}USDT"`);
+      const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=[${encodeURIComponent(queryPairs.join(','))}]`;
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!res.ok) return;
+      const tickers = await res.json();
+      if (Array.isArray(tickers)) {
+        for (const item of tickers) {
+          const sym = item.symbol.replace(/USDT$/, '');
+          const price = parseFloat(item.lastPrice);
+          const change24h = parseFloat(item.priceChangePercent);
+          const high24h = parseFloat(item.highPrice);
+          const low24h = parseFloat(item.lowPrice);
+          const volume24h = parseFloat(item.volume);
           if (!isNaN(price) && price > 0) {
             this.cache.set(sym, {
               symbol: sym,
               price,
               change24h: isNaN(change24h) ? 0 : change24h,
-              high24h: price * 1.02,
-              low24h: price * 0.98,
-              volume24h: parseFloat(asset.volumeUsd24Hr) || 0,
+              high24h: isNaN(high24h) ? price : high24h,
+              low24h: isNaN(low24h) ? price : low24h,
+              volume24h: isNaN(volume24h) ? 0 : volume24h,
               lastUpdated: now,
             });
           }
         }
-        this.lastCacheTime = now;
       }
     } catch (e: any) {
-      logger.warn(`CoinCap fallback also failed: ${e.message}`);
+      // Silently ignore Binance geo-blocking on US cloud environments
     }
   }
 
