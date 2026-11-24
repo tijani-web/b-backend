@@ -122,8 +122,12 @@ export const uploadTraderAvatar = async (req: AuthRequest, res: Response): Promi
       res.status(400).json({ error: 'No image file uploaded' });
       return;
     }
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-    res.json({ data: { url: avatarUrl } });
+    // Convert to base64 data URL so the image is stored in the database
+    // and survives Render container restarts (ephemeral filesystem)
+    const mime = req.file.mimetype || 'image/png';
+    const base64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${base64}`;
+    res.json({ data: { url: dataUrl } });
   } catch (error) {
     logger.error('uploadTraderAvatar error:', error);
     res.status(500).json({ error: 'Failed to upload avatar' });

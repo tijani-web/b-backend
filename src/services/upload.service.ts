@@ -70,17 +70,9 @@ if (!fs.existsSync(avatarsDir)) {
   fs.mkdirSync(avatarsDir, { recursive: true });
 }
 
-// Storage for copy trader avatars
-const avatarStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, avatarsDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `avatar-${uniqueSuffix}${ext}`);
-  },
-});
+// Storage for copy trader avatars — use memory storage so we can convert
+// to base64 data URLs for database persistence (Render's filesystem is ephemeral)
+const avatarMemoryStorage = multer.memoryStorage();
 
 export const uploadProof = multer({
   storage: proofStorage,
@@ -95,7 +87,7 @@ export const uploadKycFile = multer({
 }).single('document');
 
 export const uploadAvatar = multer({
-  storage: avatarStorage,
+  storage: avatarMemoryStorage,
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
